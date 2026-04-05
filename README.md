@@ -93,9 +93,15 @@ O repositório inclui `render.yaml` para publicar:
 
 No backend, configure no Render:
 
-- `DATABASE_URL`: use a connection string pooling ou direct connection do Supabase PostgreSQL
+- `DATABASE_URL`: use a connection string de runtime do Supabase
+- `DIRECT_URL`: use a connection string direta para o Prisma CLI e migrations
 - `JWT_SECRET`: pode ser gerado automaticamente pelo Blueprint
 - `AI_SERVICE_URL`: é ligado automaticamente ao serviço `atletapro-ai-service`
+
+Sugestão prática para Supabase com Prisma:
+
+- `DATABASE_URL`: use o Supavisor Session mode (`:5432`) ou outra string de runtime compatível
+- `DIRECT_URL`: use a direct connection do banco, ou a Session mode se sua infra não tiver IPv6
 
 O backend usa:
 
