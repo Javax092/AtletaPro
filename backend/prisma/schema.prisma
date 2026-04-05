@@ -1,0 +1,309 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+  COACH
+  ANALYST
+}
+
+enum MatchStatus {
+  SCHEDULED
+  COMPLETED
+  ANALYZED
+}
+
+enum MatchVideoStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Club {
+  id                    String                   @id @default(cuid())
+  name                  String
+  slug                  String                   @unique
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  users                 User[]
+  athletes              Athlete[]
+  matches               Match[]
+  metrics               PerformanceMetric[]
+  riskReports           InjuryRiskAnalysis[]
+  videos                MatchVideo[]
+  scouts                ScoutAnalysis[]
+  intelligenceReports   MatchIntelligenceReport[]
+  strengthSnapshots     TeamStrengthSnapshot[]
+  publicTeamContexts    PublicTeamContext[]
+  publicDataSyncRuns    PublicDataSyncRun[]
+  matchPredictions      MatchPrediction[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  clubId       String
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(STAFF)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  club         Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+}
+
+model Athlete {
+  id          String                @id @default(cuid())
+  clubId      String
+  fullName    String
+  birthDate   DateTime?
+  position    String
+  externalId  String?
+  isActive    Boolean               @default(true)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  club        Club                  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  metrics     PerformanceMetric[]
+  riskReports InjuryRiskAnalysis[]
+
+  @@index([clubId])
+  @@index([clubId, isActive])
+}
+
+model PerformanceMetric {
+  id                  String   @id @default(cuid())
+  clubId              String
+  athleteId           String
+  recordedAt          DateTime
+  distanceMeters      Float?
+  sprintCount         Int?
+  accelCount          Int?
+  decelCount          Int?
+  workload            Float?
+  avgHeartRateBpm     Float?
+  maxHeartRateBpm     Float?
+  sessionMinutes      Float?
+  perceivedEffort     Float?
+  fatigueLevel        Float?
+  sleepHours          Float?
+  sorenessLevel       Float?
+  source              String   @default("manual")
+  createdAt           DateTime @default(now())
+  club                Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  athlete             Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  injuryRiskAnalyses  InjuryRiskAnalysis[]
+
+  @@index([clubId, athleteId])
+}
+
+model InjuryRiskAnalysis {
+  id                  String             @id @default(cuid())
+  clubId              String
+  athleteId           String
+  performanceMetricId String?
+  riskScore           Float
+  riskLevel           String
+  summary             String
+  explanation         String
+  payloadJson         Json?
+  createdAt           DateTime           @default(now())
+  club                Club               @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  athlete             Athlete            @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  performanceMetric   PerformanceMetric? @relation(fields: [performanceMetricId], references: [id], onDelete: SetNull)
+
+  @@index([clubId, athleteId])
+}
+
+model Match {
+  id                  String                   @id @default(cuid())
+  clubId              String
+  title               String
+  opponent            String
+  matchDate           DateTime
+  competition         String?
+  status              MatchStatus              @default(SCHEDULED)
+  teamGoals           Int?
+  opponentGoals       Int?
+  actualResult        String?
+  resultRecordedAt    DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  club                Club                     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  videos              MatchVideo[]
+  scoutReports        ScoutAnalysis[]
+  intelligenceReports MatchIntelligenceReport[]
+  strengthSnapshots   TeamStrengthSnapshot[]
+  publicTeamContexts  PublicTeamContext[]
+  publicDataSyncRuns  PublicDataSyncRun[]
+  predictions         MatchPrediction[]
+
+  @@index([clubId])
+}
+
+model MatchVideo {
+  id            String           @id @default(cuid())
+  clubId        String
+  matchId       String
+  filename      String
+  originalName  String
+  mimeType      String
+  sizeBytes     Int
+  storagePath   String
+  status        MatchVideoStatus @default(PENDING)
+  uploadedAt    DateTime         @default(now())
+  processedAt   DateTime?
+  club          Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  match         Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  scoutAnalyses ScoutAnalysis[]
+
+  @@index([clubId, matchId])
+}
+
+model ScoutAnalysis {
+  id              String      @id @default(cuid())
+  clubId          String
+  matchId         String
+  matchVideoId    String?
+  analysisType    String
+  status          String
+  summary         String
+  heatmapPath     String?
+  payloadJson     Json?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  club            Club        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  match           Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchVideo      MatchVideo? @relation(fields: [matchVideoId], references: [id], onDelete: SetNull)
+
+  @@index([clubId, matchId])
+}
+
+model MatchIntelligenceReport {
+  id                     String   @id @default(cuid())
+  clubId                 String
+  matchId                String
+  status                 String
+  source                 String   @default("internal-v1")
+  opponentStrengthInput  Float?
+  teamStrengthScore      Float
+  opponentStrengthScore  Float
+  availabilityScore      Float
+  readinessScore         Float
+  loadScore              Float
+  squadDepthScore        Float
+  winProbability         Float
+  drawProbability        Float
+  lossProbability        Float
+  strongerSide           String
+  summary                String
+  explanation            String
+  payloadJson            Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  club                   Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  match                  Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, matchId, createdAt])
+}
+
+model TeamStrengthSnapshot {
+  id                  String   @id @default(cuid())
+  clubId              String
+  matchId             String?
+  referenceDate       DateTime
+  overallScore        Float
+  squadAvailability   Float
+  aggregatedRisk      Float
+  aggregatedFatigue   Float
+  summary             String
+  observations        String?
+  payloadJson         Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  club                Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  match               Match?   @relation(fields: [matchId], references: [id], onDelete: SetNull)
+
+  @@index([clubId, referenceDate, createdAt])
+  @@index([clubId, matchId])
+}
+
+model PublicTeamContext {
+  id               String   @id @default(cuid())
+  clubId           String
+  matchId          String?
+  externalClubName String
+  competition      String?
+  leaguePosition   Int?
+  recentResults    Json?
+  goalDifference   Int?
+  venueContext     String?
+  collectedAt      DateTime
+  providerKey      String   @default("manual")
+  externalTeamId   String?
+  summary          String?
+  payloadJson      Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  club             Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  match            Match?   @relation(fields: [matchId], references: [id], onDelete: SetNull)
+
+  @@index([clubId, collectedAt, createdAt])
+  @@index([clubId, matchId])
+  @@index([providerKey, externalTeamId])
+}
+
+model PublicDataSyncRun {
+  id               String   @id @default(cuid())
+  clubId           String
+  matchId          String?
+  providerKey      String
+  integrationType  String
+  status           String
+  externalClubName String?
+  externalTeamId   String?
+  errorMessage     String?
+  requestPayload   Json?
+  responsePayload  Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  club             Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  match            Match?   @relation(fields: [matchId], references: [id], onDelete: SetNull)
+
+  @@index([clubId, createdAt])
+  @@index([clubId, matchId])
+  @@index([providerKey, status])
+}
+
+model MatchPrediction {
+  id                  String   @id @default(cuid())
+  clubId              String
+  matchId             String
+  status              String
+  source              String   @default("heuristic-v1")
+  homeWinProbability  Float
+  drawProbability     Float
+  awayWinProbability  Float
+  favoriteTeam        String
+  predictedOutcome    String
+  confidenceScore     Float
+  homeTeamStrength    Float
+  awayTeamStrength    Float
+  actualResult        String?
+  resultRecordedAt    DateTime?
+  explanation         String
+  keyFactorsJson      Json?
+  payloadJson         Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  club                Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  match               Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, matchId, createdAt])
+}

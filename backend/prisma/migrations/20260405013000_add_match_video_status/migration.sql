@@ -1,0 +1,4 @@
+CREATE TYPE "MatchVideoStatus" AS ENUM ('PENDING', 'PROCESSING', 'READY', 'FAILED');
+
+ALTER TABLE "MatchVideo"
+ADD COLUMN "status" "MatchVideoStatus" NOT NULL DEFAULT 'PENDING';

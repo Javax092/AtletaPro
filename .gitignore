@@ -1,0 +1,17 @@
+node_modules
+dist
+.env
+.venv
+__pycache__
+*.pyc
+coverage
+.DS_Store
+uploads
+ai-service/storage
+backend/prisma/dev.db
+.codex
+*.tsbuildinfo
+AtletaPro/
+frontend/.git
+backend/.codex
+frontend/.codex
