@@ -82,6 +82,38 @@ npm run dev
 
 Aplicação em `http://localhost:5173`.
 
+## Deploy em produção
+
+### Render + Supabase
+
+O repositório inclui `render.yaml` para publicar:
+
+- `atletapro-ai-service` no Render
+- `atletapro-backend` no Render
+
+No backend, configure no Render:
+
+- `DATABASE_URL`: use a connection string pooling ou direct connection do Supabase PostgreSQL
+- `JWT_SECRET`: pode ser gerado automaticamente pelo Blueprint
+- `AI_SERVICE_URL`: é ligado automaticamente ao serviço `atletapro-ai-service`
+
+O backend usa:
+
+- `buildCommand`: `npm ci && npm run prisma:generate && npm run build`
+- `startCommand`: `npm run start:render`
+
+Esse `start:render` aplica `prisma migrate deploy` antes de subir a API.
+
+### Vercel
+
+Depois que o backend estiver público no Render, defina no projeto `frontend` do Vercel:
+
+```env
+VITE_API_URL=https://SEU-BACKEND.onrender.com/api
+```
+
+O frontend já está preparado para deploy no Vercel com SPA rewrite em `frontend/vercel.json`.
+
 ## Fluxo inicial do MVP
 
 1. Registrar clube e usuário admin em `POST /api/auth/register`.

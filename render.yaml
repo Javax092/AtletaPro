@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: atletapro-ai-service
+    runtime: python
+    plan: free
+    rootDir: ai-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: STORAGE_DIR
+        value: /tmp/atletapro-ai-storage
+
+  - type: web
+    name: atletapro-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci && npm run prisma:generate && npm run build
+    startCommand: npm run start:render
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: AI_SERVICE_URL
+        fromService:
+          type: web
+          name: atletapro-ai-service
+          property: url
+      - key: AI_SERVICE_TIMEOUT_MS
+        value: 5000
+      - key: PUBLIC_DATA_PROVIDER_MODE
+        value: noop
+      - key: UPLOAD_DIR
+        value: /tmp/atletapro-uploads
