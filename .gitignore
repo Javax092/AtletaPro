@@ -1,0 +1,13 @@
+node_modules
+dist
+.env
+.codex
+.venv
+__pycache__
+*.pyc
+*.tsbuildinfo
+coverage
+.DS_Store
+uploads
+ai-service/storage
+backend/prisma/dev.db
