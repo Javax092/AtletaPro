@@ -1,5 +1,10 @@
 import { api } from "./client";
-import type { MatchIntelligenceMatchItem, MatchIntelligenceReport, MatchPrediction } from "../types/matchIntelligence";
+import type {
+  LineupSuggestionResponse,
+  MatchIntelligenceMatchItem,
+  MatchIntelligenceReport,
+  MatchPrediction,
+} from "../types/matchIntelligence";
 
 export const matchIntelligenceApi = {
   listMatches: async () => {
@@ -23,6 +28,16 @@ export const matchIntelligenceApi = {
   },
   listPredictions: async (matchId: string) => {
     const response = await api.get<MatchPrediction[]>(`/match-intelligence/matches/${matchId}/predictions`);
+    return response.data;
+  },
+  suggestLineup: async (payload?: {
+    matchId?: string;
+    formation?: string;
+    lineupSize?: number;
+    opponentContext?: string;
+    opponentStrengthOverride?: number;
+  }) => {
+    const response = await api.post<LineupSuggestionResponse>("/match/intelligence", payload ?? {});
     return response.data;
   },
 };

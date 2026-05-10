@@ -49,3 +49,56 @@ export interface DashboardResponse {
   metrics: DashboardMetricPoint[];
   risks: RiskPoint[];
 }
+
+export type DashboardStatusTone = "success" | "warning" | "danger" | "info" | "neutral";
+
+export interface TrendPoint {
+  label: string;
+  value: number;
+  secondaryValue?: number;
+}
+
+export interface DashboardMetricCard {
+  id: string;
+  label: string;
+  value: string;
+  delta: number;
+  trendLabel: string;
+  helper: string;
+  icon: string;
+  tone: DashboardStatusTone;
+}
+
+export interface DashboardInsight {
+  id: string;
+  title: string;
+  description: string;
+  tone: DashboardStatusTone;
+}
+
+export interface ReadinessSummary {
+  fitCount: number;
+  preserveCount: number;
+  returnCount: number;
+  recommendation: string;
+}
+
+export interface DashboardSummary {
+  clubName: string;
+  generatedAt: string;
+  teamStatus: string;
+  periodLabel: string;
+  metrics: DashboardMetricCard[];
+  loadTrend: TrendPoint[];
+  squadRiskTrend: TrendPoint[];
+  positionDistribution: Array<{ label: string; value: number }>;
+  topRiskAthletes: Array<{ athleteId: string; name: string; riskScore: number }>;
+  topReadinessAthletes: Array<{ athleteId: string; name: string; readinessScore: number }>;
+  alertSeverity: Array<{ label: string; value: number }>;
+  recentInsights: DashboardInsight[];
+  strategicSummary: string[];
+  watchlist: string[];
+  unavailable: string[];
+  mostReady: string[];
+  readiness: ReadinessSummary;
+}

@@ -47,6 +47,16 @@ export const performanceRepository = {
       take: limit,
     }),
 
+  listMetricsByAthlete: (clubId: string, athleteId: string, limit = 20) =>
+    prisma.performanceMetric.findMany({
+      where: {
+        clubId,
+        athleteId,
+      },
+      orderBy: { recordedAt: "desc" },
+      take: limit,
+    }),
+
   createRiskAnalysis: (data: {
     clubId: string;
     athleteId: string;

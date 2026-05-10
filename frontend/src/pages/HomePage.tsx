@@ -15,6 +15,10 @@ export const HomePage = () => (
               Acompanhe atletas, jogos, análises e previsões em uma plataforma pensada para técnicos, gestores e comissões.
             </p>
             <div className="mt-10 flex flex-wrap gap-3">
+              <Link to="/demo/dashboard" className="app-button-primary inline-flex items-center gap-2">
+                Abrir demo comercial
+                <span aria-hidden="true">→</span>
+              </Link>
               <Link to="/login" className="app-button-primary inline-flex items-center gap-2">
                 Entrar no sistema
                 <span aria-hidden="true">→</span>

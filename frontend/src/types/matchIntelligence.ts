@@ -117,3 +117,28 @@ export interface MatchPrediction {
     status: string;
   };
 }
+
+export interface LineupSuggestionAthlete {
+  athleteId: string;
+  fullName: string;
+  position: string;
+  readinessScore: number;
+  riskLevel: string;
+  fatigueLevel: number;
+  workload: number;
+  explanation: string[];
+}
+
+export interface LineupSuggestionResponse {
+  formation: string;
+  matchId: string | null;
+  lineup: LineupSuggestionAthlete[];
+  alternatives: LineupSuggestionAthlete[];
+  summary: string;
+  explanation: string;
+  explainability: {
+    title: string;
+    summary: string;
+    factors: string[];
+  };
+}

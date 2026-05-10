@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 
 type CardProps = HTMLAttributes<HTMLDivElement> & {
@@ -7,8 +8,8 @@ type CardProps = HTMLAttributes<HTMLDivElement> & {
   children: ReactNode;
 };
 
-export const Card = ({ title, subtitle, actions, children, className = "", ...props }: CardProps) => (
-  <section className={`page-section ${className}`.trim()} {...props}>
+export const Card = forwardRef<HTMLElement, CardProps>(({ title, subtitle, actions, children, className = "", ...props }, ref) => (
+  <section ref={ref} className={`page-section ${className}`.trim()} {...props}>
     {title || subtitle || actions ? (
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
@@ -20,4 +21,6 @@ export const Card = ({ title, subtitle, actions, children, className = "", ...pr
     ) : null}
     {children}
   </section>
-);
+));
+
+Card.displayName = "Card";

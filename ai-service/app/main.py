@@ -6,7 +6,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.routes.health import router as health_router
+from app.routes.demo import router as demo_router
 from app.routes.injury_risk import router as injury_risk_router
+from app.routes.ml import router as ml_router
 from app.routes.video import router as video_router
 from app.utils.logger import log, set_request_id
 from app.utils.settings import settings
@@ -94,7 +96,9 @@ async def unhandled_exception_handler(request: Request, error: Exception):
     return JSONResponse(status_code=500, content={"message": "Internal server error"})
 
 app.include_router(health_router)
+app.include_router(demo_router)
 app.include_router(injury_risk_router)
+app.include_router(ml_router)
 app.include_router(video_router)
 
 log(

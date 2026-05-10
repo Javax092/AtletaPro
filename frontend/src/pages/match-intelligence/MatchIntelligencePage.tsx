@@ -13,10 +13,16 @@ import { ProbabilityBar } from "../../components/common/ProbabilityBar";
 import { Select } from "../../components/common/Select";
 import { StatCard } from "../../components/common/StatCard";
 import { TeamStrengthComparison } from "../../components/common/TeamStrengthComparison";
+import { Textarea } from "../../components/common/Textarea";
 import { WorkflowGuide } from "../../components/common/WorkflowGuide";
 import { useOnboarding } from "../../hooks/useOnboarding";
 import { useNotifications } from "../../hooks/useNotifications";
-import type { MatchIntelligenceMatchItem, MatchPrediction, MatchPredictionFactor } from "../../types/matchIntelligence";
+import type {
+  LineupSuggestionResponse,
+  MatchIntelligenceMatchItem,
+  MatchPrediction,
+  MatchPredictionFactor,
+} from "../../types/matchIntelligence";
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (axios.isAxiosError(error)) {
@@ -72,6 +78,10 @@ export const MatchIntelligencePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [runningPredictionMatchId, setRunningPredictionMatchId] = useState<string | null>(null);
+  const [lineupSuggestion, setLineupSuggestion] = useState<LineupSuggestionResponse | null>(null);
+  const [isLineupLoading, setIsLineupLoading] = useState(false);
+  const [formationDraft, setFormationDraft] = useState("4-3-3");
+  const [opponentContextDraft, setOpponentContextDraft] = useState("");
 
   const loadPage = async () => {
     setLoading(true);
@@ -185,6 +195,27 @@ export const MatchIntelligencePage = () => {
     }
   };
 
+  const handleSuggestLineup = async () => {
+    setIsLineupLoading(true);
+
+    try {
+      const parsedStrength = Number(opponentStrengthDraft.trim());
+      const result = await matchIntelligenceApi.suggestLineup({
+        matchId: selectedMatch?.id,
+        formation: formationDraft,
+        opponentContext: opponentContextDraft.trim() || undefined,
+        opponentStrengthOverride: Number.isFinite(parsedStrength) ? parsedStrength : undefined,
+      });
+      setLineupSuggestion(result);
+      notifySuccess("Escalação sugerida", "A IA retornou lineup, alternativas e justificativa.");
+    } catch (requestError) {
+      const message = getErrorMessage(requestError, "Nao foi possivel sugerir a escalação para este contexto.");
+      notifyError("Falha na escalação inteligente", message);
+    } finally {
+      setIsLineupLoading(false);
+    }
+  };
+
   const keyFactors = (selectedPrediction?.keyFactorsJson ?? []) as MatchPredictionFactor[];
   const teamLabel = venueContext === "AWAY" ? "Seu time" : "Seu time";
   const opponentLabel = selectedMatch?.opponent ?? "Adversário";
@@ -287,6 +318,71 @@ export const MatchIntelligencePage = () => {
               accentClassName="from-rose-400/30"
             />
           </section>
+
+          <Card
+            title="Escalação inteligente"
+            subtitle="Sugestão de lineup baseada em disponibilidade, fadiga, risco recente e contexto competitivo."
+            actions={<Badge tone="info">AI Explainability</Badge>}
+          >
+            <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+              <div className="space-y-4">
+                <Input label="Formação" value={formationDraft} onChange={(event) => setFormationDraft(event.target.value)} placeholder="Ex.: 4-3-3" />
+                <Textarea
+                  label="Contexto do adversário"
+                  value={opponentContextDraft}
+                  onChange={(event) => setOpponentContextDraft(event.target.value)}
+                  placeholder="Ex.: adversário pressiona alto, usa muito corredor esquerdo, baixa linha após vantagem."
+                />
+                <Button type="button" onClick={() => void handleSuggestLineup()} disabled={isLineupLoading}>
+                  {isLineupLoading ? "Gerando escalação..." : "Sugerir escalação"}
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {!lineupSuggestion ? (
+                  buildEmptyState("Nenhuma escalação sugerida ainda", "Gere uma leitura para receber o melhor lineup, alternativas e explicação da IA.")
+                ) : (
+                  <>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-label-muted">Resumo</p>
+                      <p className="mt-3 text-sm leading-7 text-slate-200">{lineupSuggestion.summary}</p>
+                    </div>
+                    <div className="rounded-2xl border border-dashed border-[#edc17a]/30 bg-[#edc17a]/6 p-4">
+                      <p className="text-sm font-medium text-white">Por que essa escalação foi sugerida?</p>
+                      <p className="mt-2 text-sm leading-7 text-slate-200">{lineupSuggestion.explanation}</p>
+                      <p className="mt-2 text-xs leading-6 text-slate-300">{lineupSuggestion.explainability.factors.join(" ")}</p>
+                    </div>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm font-medium text-white">Lineup principal</p>
+                        <div className="mt-3 space-y-3">
+                          {lineupSuggestion.lineup.map((athlete, index) => (
+                            <div key={athlete.athleteId} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                              <p className="text-sm font-medium text-white">#{index + 1} {athlete.fullName}</p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                {athlete.position} • prontidão {athlete.readinessScore} • risco {athlete.riskLevel}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm font-medium text-white">Alternativas</p>
+                        <div className="mt-3 space-y-3">
+                          {lineupSuggestion.alternatives.map((athlete) => (
+                            <div key={athlete.athleteId} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                              <p className="text-sm font-medium text-white">{athlete.fullName}</p>
+                              <p className="mt-1 text-xs text-slate-400">{athlete.position} • prontidão {athlete.readinessScore}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </Card>
 
           {error ? (
             <div className="mb-6">

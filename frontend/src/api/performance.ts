@@ -4,6 +4,7 @@ import type {
   MetricsImportReport,
   PerformanceRecord,
   PerformanceRecordInput,
+  RiskAnalysis,
 } from "../types/performance";
 import {
   appendStoredPerformanceRecords,
@@ -40,6 +41,12 @@ export const performanceApi = {
     const response = await api.get<PerformanceListResponse>("/performance");
     return extractRecords(response.data);
   },
+  listRisks: async (athleteId?: string) => {
+    const response = await api.get<RiskAnalysis[]>("/performance/risks", {
+      params: athleteId ? { athleteId } : undefined,
+    });
+    return response.data;
+  },
   listLocal: () => readStoredPerformanceRecords(),
   createManual: async (payload: PerformanceRecordInput) => {
     try {
@@ -57,12 +64,12 @@ export const performanceApi = {
       return record;
     }
   },
-  importCsv: async (file: File, preview: CsvPreviewResult) => {
+  importCsv: async (file: File, preview?: CsvPreviewResult) => {
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await api.post<MetricsImportReport>("/performance/import-csv", formData, {
+      const response = await api.post<MetricsImportReport>("/performance/metrics/import-csv", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -70,6 +77,10 @@ export const performanceApi = {
 
       return response.data;
     } catch (error) {
+      if (!preview) {
+        throw error;
+      }
+
       const records = preview.validRows
         .map((row) => row.record)
         .filter((record): record is PerformanceRecordInput => record !== null)

@@ -11,6 +11,7 @@ import { useAuth } from "../hooks/useAuth";
 const links = [
   { to: "/dashboard", label: "Performance", category: "Performance", description: "Prioridades físicas, alertas e visão diária do elenco" },
   { to: "/athletes", label: "Atletas", category: "Performance", description: "Base do elenco para manter o sistema sempre atualizado" },
+  { to: "/alerts", label: "Alertas", category: "Performance", description: "Fila priorizada para ação rápida da comissão e do staff" },
   { to: "/matches", label: "Partidas", category: "Jogo", description: "Cadastro de jogos, vídeos e andamento do material" },
   { to: "/match-intelligence", label: "Match Intelligence", category: "Jogo", description: "Leitura pré-jogo com cenários e probabilidades" },
   { to: "/scout", label: "Scout", category: "Jogo", description: "Análises geradas a partir dos vídeos já processados" },

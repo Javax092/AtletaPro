@@ -1,5 +1,5 @@
 import axios from "axios";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { athleteApi } from "../../api/athletes";
 import { Badge } from "../../components/common/Badge";
 import { Button } from "../../components/common/Button";
@@ -14,7 +14,14 @@ import { Dialog } from "../../components/common/Dialog";
 import { useOnboarding } from "../../hooks/useOnboarding";
 import { WorkflowGuide } from "../../components/common/WorkflowGuide";
 import { useNotifications } from "../../hooks/useNotifications";
-import type { Athlete, AthleteFormValues, AthletePayload } from "../../types/athlete";
+import type {
+  Athlete,
+  AthleteAiProfile,
+  AthleteCsvPreviewResponse,
+  AthleteFormValues,
+  AthleteIntelligencePreview,
+  AthletePayload,
+} from "../../types/athlete";
 
 const emptyForm: AthleteFormValues = {
   fullName: "",
@@ -75,6 +82,8 @@ const calculateAge = (birthDate?: string | null) => {
 export const AthletesPage = () => {
   const { notifyError, notifySuccess, notifyInfo } = useNotifications();
   const { completeStep } = useOnboarding();
+  const formSectionRef = useRef<HTMLElement | null>(null);
+  const firstFieldRef = useRef<HTMLInputElement | null>(null);
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
@@ -89,6 +98,14 @@ export const AthletesPage = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmDeactivateOpen, setConfirmDeactivateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [intelligencePreview, setIntelligencePreview] = useState<AthleteIntelligencePreview | null>(null);
+  const [isIntelligenceLoading, setIsIntelligenceLoading] = useState(false);
+  const [aiProfile, setAiProfile] = useState<AthleteAiProfile | null>(null);
+  const [isAiProfileLoading, setIsAiProfileLoading] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvPreview, setCsvPreview] = useState<AthleteCsvPreviewResponse | null>(null);
+  const [isCsvPreviewLoading, setIsCsvPreviewLoading] = useState(false);
+  const [isCsvImporting, setIsCsvImporting] = useState(false);
 
   const loadAthletes = async () => {
     setIsListLoading(true);
@@ -139,6 +156,7 @@ export const AthletesPage = () => {
     if (isCreateMode || !selectedAthleteId) {
       setSelectedAthlete(null);
       setDetailError(null);
+      setAiProfile(null);
       return;
     }
 
@@ -174,6 +192,68 @@ export const AthletesPage = () => {
     };
   }, [isCreateMode, selectedAthleteId]);
 
+  useEffect(() => {
+    const hasMinimumInput = form.fullName.trim().length >= 2 || form.position.trim().length >= 2 || form.birthDate.trim().length > 0;
+
+    if (!hasMinimumInput) {
+      setIntelligencePreview(null);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      setIsIntelligenceLoading(true);
+
+      try {
+        const result = await athleteApi.previewIntelligence({
+          fullName: form.fullName,
+          position: form.position,
+          birthDate: form.birthDate || null,
+        });
+        setIntelligencePreview(result);
+      } catch {
+        setIntelligencePreview(null);
+      } finally {
+        setIsIntelligenceLoading(false);
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [form.birthDate, form.fullName, form.position]);
+
+  useEffect(() => {
+    if (isCreateMode || !selectedAthleteId) {
+      setAiProfile(null);
+      return;
+    }
+
+    let ignore = false;
+
+    const loadAiProfile = async () => {
+      setIsAiProfileLoading(true);
+
+      try {
+        const result = await athleteApi.getAiProfile(selectedAthleteId);
+        if (!ignore) {
+          setAiProfile(result);
+        }
+      } catch {
+        if (!ignore) {
+          setAiProfile(null);
+        }
+      } finally {
+        if (!ignore) {
+          setIsAiProfileLoading(false);
+        }
+      }
+    };
+
+    void loadAiProfile();
+
+    return () => {
+      ignore = true;
+    };
+  }, [isCreateMode, selectedAthleteId]);
+
   const startCreate = () => {
     setIsCreateMode(true);
     setSelectedAthleteId(null);
@@ -182,12 +262,65 @@ export const AthletesPage = () => {
     setDetailError(null);
     setFormError(null);
     notifyInfo("Novo cadastro", "Preencha os dados do atleta para criar um novo registro.");
+
+    window.requestAnimationFrame(() => {
+      formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      firstFieldRef.current?.focus();
+    });
   };
 
   const selectAthlete = (athleteId: string) => {
     setIsCreateMode(false);
     setSelectedAthleteId(athleteId);
     setFormError(null);
+  };
+
+  const handleCsvPreview = async () => {
+    if (!csvFile) {
+      notifyInfo("Arquivo obrigatório", "Selecione um CSV para gerar a prévia inteligente.");
+      return;
+    }
+
+    setIsCsvPreviewLoading(true);
+
+    try {
+      const preview = await athleteApi.previewCsvImport(csvFile);
+      setCsvPreview(preview);
+      notifySuccess("Prévia pronta", "O CSV foi analisado e está pronto para revisão antes do salvamento.");
+    } catch (error) {
+      const message = getErrorMessage(error, "Nao foi possivel analisar o CSV informado.");
+      notifyError("Falha na prévia do CSV", message);
+    } finally {
+      setIsCsvPreviewLoading(false);
+    }
+  };
+
+  const handleCsvCommit = async () => {
+    if (!csvPreview) {
+      return;
+    }
+
+    setIsCsvImporting(true);
+
+    try {
+      const payload = csvPreview.rows
+        .filter((row) => row.validation.isValid)
+        .map((row) => ({
+          ...row.normalizedAthlete,
+          metric: row.metricDraft ?? undefined,
+        }));
+
+      const result = await athleteApi.commitCsvImport(payload);
+      await loadAthletes();
+      notifySuccess("Importação concluída", `${result.totalCreated} atletas importados com sucesso.`);
+      setCsvPreview(null);
+      setCsvFile(null);
+    } catch (error) {
+      const message = getErrorMessage(error, "Nao foi possivel concluir a importacao inteligente.");
+      notifyError("Falha na importação", message);
+    } finally {
+      setIsCsvImporting(false);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -274,6 +407,30 @@ export const AthletesPage = () => {
         eyebrow="Atletas"
       />
 
+      <Card className="overflow-hidden border border-[#edc17a]/15 bg-gradient-to-br from-[#edc17a]/8 via-white/[0.03] to-[#66d184]/8 p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-[11px] uppercase tracking-[0.24em] text-[#edc17a]">Area de cadastro</p>
+            <h2 className="mt-3 text-xl font-semibold text-white">Insercao de atletas fica neste modulo</h2>
+            <p className="mt-2 text-sm leading-7 text-slate-300">
+              Use o botao abaixo para abrir o formulario. Em telas menores, o formulario aparece logo abaixo da lista de elenco.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" onClick={startCreate}>
+              Inserir novo atleta
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            >
+              Ir para formulario
+            </Button>
+          </div>
+        </div>
+      </Card>
+
       <WorkflowGuide
         title="Tudo começa com um elenco bem organizado"
         description="Esta é a base do sistema. Quando o elenco está completo e atualizado, fica mais fácil acompanhar desempenho, organizar partidas e evitar retrabalho."
@@ -353,6 +510,11 @@ export const AthletesPage = () => {
               <EmptyState
                 title="Nenhum atleta ativo cadastrado"
                 description="Crie o primeiro atleta no formulário ao lado para iniciar a base do elenco."
+                action={
+                  <Button type="button" onClick={startCreate}>
+                    Cadastrar primeiro atleta
+                  </Button>
+                }
               />
             </div>
           ) : filteredAthletes.length === 0 ? (
@@ -401,6 +563,7 @@ export const AthletesPage = () => {
         </section>
 
         <Card
+          ref={formSectionRef}
           title={isCreateMode ? "Cadastrar novo atleta" : "Revisar cadastro do atleta"}
           subtitle={
             isCreateMode
@@ -435,7 +598,14 @@ export const AthletesPage = () => {
             <LoadingState className="mt-6" />
           ) : (
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+              {isCreateMode ? (
+                <div className="rounded-2xl border border-dashed border-[#edc17a]/25 bg-[#edc17a]/6 px-4 py-3 text-sm text-slate-200">
+                  Esta e a area de insercao. Preencha os campos abaixo e clique em <span className="font-semibold text-white">Criar atleta</span>.
+                </div>
+              ) : null}
+
               <Input
+                ref={firstFieldRef}
                 label="Nome completo"
                 value={form.fullName}
                 onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))}
@@ -467,6 +637,49 @@ export const AthletesPage = () => {
                 />
               </div>
 
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-white">Cadastro inteligente</p>
+                    <p className="mt-1 text-sm text-slate-400">A IA padroniza a posição e tenta encontrar duplicidades antes do salvamento.</p>
+                  </div>
+                  {isIntelligenceLoading ? <Badge tone="info">Analisando</Badge> : <Badge tone="success">IA ativa</Badge>}
+                </div>
+
+                {intelligencePreview ? (
+                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <p className="text-label-muted">Padronização sugerida</p>
+                      <p className="mt-3 text-sm text-slate-200">Nome: {intelligencePreview.normalized.fullName ?? "--"}</p>
+                      <p className="mt-2 text-sm text-slate-200">Posição: {intelligencePreview.normalized.position ?? "--"}</p>
+                      <p className="mt-3 text-xs leading-6 text-slate-400">{intelligencePreview.normalized.explainability.summary}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <p className="text-label-muted">Possíveis duplicidades</p>
+                      {intelligencePreview.duplicates.matches.length > 0 ? (
+                        <div className="mt-3 space-y-3">
+                          {intelligencePreview.duplicates.matches.map((candidate) => (
+                            <div key={candidate.athleteId} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-medium text-white">{candidate.athlete.fullName}</p>
+                                <Badge tone={candidate.confidence === "HIGH" ? "danger" : candidate.confidence === "MEDIUM" ? "warning" : "info"}>
+                                  {Math.round(candidate.score * 100)}%
+                                </Badge>
+                              </div>
+                              <p className="mt-1 text-xs text-slate-400">{candidate.reasons.join(" ")}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-slate-400">Nenhum cadastro muito parecido encontrado neste clube.</p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm text-slate-400">Preencha nome, posição ou nascimento para ativar a análise.</p>
+                )}
+              </div>
+
               {!isCreateMode && selectedAthlete ? (
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
                   <p>ID do atleta: {selectedAthlete.id}</p>
@@ -491,6 +704,125 @@ export const AthletesPage = () => {
                 ) : null}
               </div>
             </form>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <Card
+          title="Importação inteligente via CSV"
+          subtitle="Suba um arquivo com cabeçalhos variados. O sistema identifica colunas, padroniza os atletas e mostra uma prévia editável antes de gravar."
+          actions={<Badge tone="info">CSV + IA</Badge>}
+        >
+          <div className="space-y-4">
+            <Input type="file" accept=".csv,text/csv" onChange={(event) => setCsvFile(event.target.files?.[0] ?? null)} />
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" onClick={() => void handleCsvPreview()} disabled={isCsvPreviewLoading}>
+                {isCsvPreviewLoading ? "Analisando CSV..." : "Gerar prévia inteligente"}
+              </Button>
+              {csvPreview ? (
+                <Button type="button" variant="secondary" onClick={() => void handleCsvCommit()} disabled={isCsvImporting}>
+                  {isCsvImporting ? "Importando..." : "Confirmar importação"}
+                </Button>
+              ) : null}
+            </div>
+
+            {csvPreview ? (
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-label-muted">Linhas lidas</p>
+                    <p className="mt-3 text-xl font-semibold text-white">{csvPreview.summary.totalRows}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-label-muted">Colunas reconhecidas</p>
+                    <p className="mt-3 text-xl font-semibold text-white">{csvPreview.summary.detectedColumns}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-label-muted">Linhas com issues</p>
+                    <p className="mt-3 text-xl font-semibold text-white">{csvPreview.summary.rowsWithIssues}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-label-muted">Preview carregada</p>
+                    <p className="mt-3 text-xl font-semibold text-white">{csvPreview.summary.previewRows}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-sm font-medium text-white">Mapeamento de colunas</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {csvPreview.detectedColumns.map((column) => (
+                      <Badge key={`${column.source}-${column.mappedField ?? "none"}`} tone={column.mappedField ? "success" : "info"}>
+                        {column.source} → {column.mappedField ?? "não mapeada"}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {csvPreview.rows.map((row) => (
+                    <div key={row.tempId} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-white">{row.normalizedAthlete.fullName || "Linha sem nome válido"}</p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {row.normalizedAthlete.position || "Sem posição"} {row.normalizedAthlete.birthDate ? `• ${row.normalizedAthlete.birthDate}` : ""}
+                          </p>
+                        </div>
+                        {row.validation.isValid ? <Badge tone="success">Pronto para importar</Badge> : <Badge tone="danger">Revisão necessária</Badge>}
+                      </div>
+                      {row.duplicateMatches.length > 0 ? (
+                        <p className="mt-3 text-xs text-amber-200">
+                          Possível duplicidade com: {row.duplicateMatches.map((candidate) => candidate.athlete.fullName).join(", ")}.
+                        </p>
+                      ) : null}
+                      {row.validation.issues.length > 0 ? <p className="mt-2 text-xs text-rose-200">{row.validation.issues.join(" ")}</p> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </Card>
+
+        <Card
+          title="Perfil inteligente do atleta"
+          subtitle="Resumo técnico, condição física, tendência de performance e explicação dos sinais usados pela IA."
+          actions={!isCreateMode && selectedAthlete ? <Badge tone="success">Atleta selecionado</Badge> : <Badge tone="info">Selecione um atleta</Badge>}
+        >
+          {isCreateMode ? (
+            <EmptyState
+              title="Selecione um atleta para ver o perfil IA"
+              description="O perfil automático usa o histórico recente do atleta para resumir condição e tendência."
+            />
+          ) : isAiProfileLoading ? (
+            <LoadingState className="mt-2" />
+          ) : aiProfile ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-label-muted">Resumo técnico</p>
+                <p className="mt-3 text-sm leading-7 text-slate-200">{aiProfile.technicalProfile.summary}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-label-muted">Condição física</p>
+                <p className="mt-3 text-sm leading-7 text-slate-200">{aiProfile.physicalCondition.summary}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-label-muted">Tendência de performance</p>
+                <p className="mt-3 text-sm leading-7 text-slate-200">{aiProfile.performanceTrend.summary}</p>
+              </div>
+              <div className="rounded-2xl border border-dashed border-[#edc17a]/30 bg-[#edc17a]/6 p-4">
+                <p className="text-sm font-medium text-white">{aiProfile.explainability.title}</p>
+                <p className="mt-2 text-sm leading-7 text-slate-300">{aiProfile.explainability.summary}</p>
+                <ul className="mt-3 space-y-2 text-xs text-slate-300">
+                  {aiProfile.explainability.factors.map((factor) => (
+                    <li key={factor}>• {factor}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <EmptyState title="Perfil indisponível" description="Ainda não foi possível gerar o perfil inteligente para este atleta." />
           )}
         </Card>
       </div>

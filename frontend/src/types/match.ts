@@ -43,3 +43,26 @@ export interface MatchPayload {
   matchDate: string;
   competition?: string | null;
 }
+
+export interface MatchSelectionItem {
+  athleteId: string;
+  athleteName: string;
+  position: string;
+  readinessScore: number;
+  riskLabel: string;
+  status: string;
+  justification: string;
+}
+
+export interface MatchIntelligenceReport {
+  matchTitle: string;
+  opponent: string;
+  competition: string;
+  tacticalRecommendation: string;
+  idealLineup: MatchSelectionItem[];
+  suggestedBench: MatchSelectionItem[];
+  unavailablePlayers: MatchSelectionItem[];
+  preservePlayers: MatchSelectionItem[];
+  watchlistPlayers: MatchSelectionItem[];
+  tacticalNotes: string[];
+}

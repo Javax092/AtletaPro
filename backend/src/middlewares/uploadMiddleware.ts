@@ -28,3 +28,25 @@ export const upload = multer({
     fileSize: 1024 * 1024 * 500,
   },
 });
+
+export const csvUpload = multer({
+  storage,
+  fileFilter: (_req, file, cb) => {
+    const validMimeTypes = new Set([
+      "text/csv",
+      "application/csv",
+      "application/vnd.ms-excel",
+      "text/plain",
+    ]);
+
+    if (validMimeTypes.has(file.mimetype) || file.originalname.toLowerCase().endsWith(".csv")) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new Error("Only CSV uploads are allowed"));
+  },
+  limits: {
+    fileSize: 1024 * 1024 * 20,
+  },
+});

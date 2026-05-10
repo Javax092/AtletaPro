@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     environment: str = Field(default="production", validation_alias=AliasChoices("ENVIRONMENT", "APP_ENV"))
     port: int = Field(default=8001, validation_alias=AliasChoices("PORT", "APP_PORT"))
     storage_dir: str = "storage"
+    demo_database_url: str = "postgresql://postgres:postgres@127.0.0.1:5432/soccermonitor_demo"
+    demo_model_path: str = "models/injury_model.pkl"
+    multi_dataset_model_path: str = "models/injury_model_multi.pkl"
+    demo_club_name: str = "Manaus Performance FC"
     video_sample_interval_seconds: float = 0.5
     video_heatmap_width: int = 96
     video_heatmap_height: int = 54
@@ -23,6 +27,24 @@ class Settings(BaseSettings):
     def temp_video_dir(self) -> Path:
         path = Path(self.storage_dir).resolve() / "tmp"
         path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def demo_storage_dir(self) -> Path:
+        path = Path(self.storage_dir).resolve() / "demo"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def demo_model_file(self) -> Path:
+        path = Path(self.demo_model_path).resolve()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def multi_dataset_model_file(self) -> Path:
+        path = Path(self.multi_dataset_model_path).resolve()
+        path.parent.mkdir(parents=True, exist_ok=True)
         return path
 
 

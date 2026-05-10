@@ -17,6 +17,9 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "smoke": "node ../scripts/smoke-backend.mjs"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@prisma/client": "^6.5.0",
     "axios": "^1.8.4",

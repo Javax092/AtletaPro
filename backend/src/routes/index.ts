@@ -7,6 +7,9 @@ import { matchIntelligenceRouter } from "./matchIntelligenceRoutes.js";
 import { publicTeamContextRouter } from "./publicTeamContextRoutes.js";
 import { dashboardRouter } from "./dashboardRoutes.js";
 import { aiRouter } from "./aiRoutes.js";
+import { alertRouter } from "./alertRoutes.js";
+import { matchAiRouter } from "./matchAiRoutes.js";
+import { scoutRouter } from "./scoutRoutes.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { tenantContextMiddleware } from "../middlewares/tenantContextMiddleware.js";
 
@@ -19,8 +22,11 @@ appRouter.get("/health", (_req, res) => {
 appRouter.use("/auth", authRouter);
 appRouter.use("/ai", aiRouter);
 appRouter.use("/dashboard", authMiddleware, tenantContextMiddleware, dashboardRouter);
+appRouter.use("/alerts", authMiddleware, tenantContextMiddleware, alertRouter);
 appRouter.use("/athletes", authMiddleware, tenantContextMiddleware, athleteRouter);
 appRouter.use("/performance", authMiddleware, tenantContextMiddleware, performanceRouter);
 appRouter.use("/matches", authMiddleware, tenantContextMiddleware, matchRouter);
 appRouter.use("/match-intelligence", authMiddleware, tenantContextMiddleware, matchIntelligenceRouter);
+appRouter.use("/match", authMiddleware, tenantContextMiddleware, matchAiRouter);
+appRouter.use("/scout", authMiddleware, tenantContextMiddleware, scoutRouter);
 appRouter.use("/public-team-contexts", authMiddleware, tenantContextMiddleware, publicTeamContextRouter);

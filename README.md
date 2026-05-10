@@ -286,6 +286,12 @@ VITE_API_URL=https://SEU-BACKEND.up.railway.app/api
 
 O arquivo [frontend/vercel.json](/home/limax44/soccermonitor/AtletaPro/frontend/vercel.json) já configura rewrite SPA para evitar `404` em refresh:
 
+Observações de produção:
+
+- Configure `VITE_API_URL` no projeto da Vercel antes do primeiro deploy.
+- O frontend depende de rewrite SPA para evitar `404` em refresh e rotas profundas.
+- Não faça commit de `.vercel` ou de arquivos `.env` reais.
+
 ```json
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",

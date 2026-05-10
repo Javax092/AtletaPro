@@ -8,9 +8,11 @@ import { FeedbackBanner } from "../../components/common/FeedbackBanner";
 import { LoadingState } from "../../components/common/LoadingState";
 import { PageHeader } from "../../components/common/PageHeader";
 import { StatCard } from "../../components/common/StatCard";
+import { Textarea } from "../../components/common/Textarea";
 import { WorkflowGuide } from "../../components/common/WorkflowGuide";
+import { useNotifications } from "../../hooks/useNotifications";
 import { useOnboarding } from "../../hooks/useOnboarding";
-import type { ScoutAnalysis } from "../../types/scout";
+import type { ScoutAnalysis, ScoutAssistResponse } from "../../types/scout";
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (axios.isAxiosError(error)) {
@@ -197,10 +199,14 @@ const DemoScoutShowcase = () => (
 );
 
 export const ScoutPage = () => {
+  const { notifyError, notifySuccess } = useNotifications();
   const { completeStep } = useOnboarding();
   const [items, setItems] = useState<ScoutAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [assistNotes, setAssistNotes] = useState("");
+  const [assistResult, setAssistResult] = useState<ScoutAssistResponse | null>(null);
+  const [isAssistLoading, setIsAssistLoading] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -244,6 +250,30 @@ export const ScoutPage = () => {
       completeStep("scout");
     }
   }, [completeStep, error, isLoading]);
+
+  const handleAssist = async () => {
+    if (!latestAnalysis?.id) {
+      return;
+    }
+
+    setIsAssistLoading(true);
+
+    try {
+      const result = await scoutApi.assist({
+        analysisId: latestAnalysis.id,
+        notes: assistNotes
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      });
+      setAssistResult(result);
+      notifySuccess("Scout IA gerado", "A leitura assistida foi criada a partir da análise atual.");
+    } catch (requestError) {
+      notifyError("Falha no scout assistido", getErrorMessage(requestError, "Nao foi possivel gerar a leitura assistida."));
+    } finally {
+      setIsAssistLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -334,6 +364,63 @@ export const ScoutPage = () => {
                   : "Use a prévia abaixo para mostrar o resultado esperado mesmo sem dados reais."}
               </p>
             </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card
+        title="Scout assistido por IA"
+        subtitle="Transforme análise de vídeo e anotações do staff em observações objetivas, pontos fortes/fracos e destaques do jogo."
+        actions={<Badge tone="info">Video + Dados</Badge>}
+      >
+        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <div className="space-y-4">
+            <Textarea
+              label="Notas adicionais do staff"
+              value={assistNotes}
+              onChange={(event) => setAssistNotes(event.target.value)}
+              placeholder="Uma linha por observação. Ex.: pressão alta funcionou melhor pelo lado direito."
+            />
+            <Button type="button" onClick={() => void handleAssist()} disabled={!latestAnalysis || isAssistLoading}>
+              {isAssistLoading ? "Gerando leitura..." : "Gerar scout assistido"}
+            </Button>
+          </div>
+
+          <div>
+            {!assistResult ? (
+              <FeedbackBanner tone="info" message="Gere a leitura assistida para receber destaques, observações por setor e explicação da IA." />
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-sm font-medium text-white">Resumo</p>
+                  <p className="mt-3 text-sm leading-7 text-slate-200">{assistResult.summary}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-sm font-medium text-white">Destaques do jogo</p>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-200">
+                    {assistResult.teamHighlights.map((item) => (
+                      <li key={item}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {assistResult.athleteObservations.map((item) => (
+                    <div key={item.athleteName} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-sm font-medium text-white">{item.athleteName}</p>
+                      <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Pontos fortes</p>
+                      <p className="mt-2 text-sm text-slate-200">{item.strengths.join(" ")}</p>
+                      <p className="mt-4 text-xs uppercase tracking-[0.16em] text-slate-500">Pontos fracos</p>
+                      <p className="mt-2 text-sm text-slate-200">{item.weaknesses.join(" ")}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-2xl border border-dashed border-[#edc17a]/30 bg-[#edc17a]/6 p-4">
+                  <p className="text-sm font-medium text-white">{assistResult.explainability.title}</p>
+                  <p className="mt-2 text-sm leading-7 text-slate-200">{assistResult.explainability.summary}</p>
+                  <p className="mt-2 text-xs leading-6 text-slate-300">{assistResult.explainability.factors.join(" ")}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </Card>
