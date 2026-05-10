@@ -22,8 +22,8 @@ export const LoginPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { notifySuccess, notifyError } = useNotifications();
-  const [email, setEmail] = useState("admin@democlub.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,10 +48,7 @@ export const LoginPage = () => {
     <div>
       <p className="text-xs uppercase tracking-[0.28em] text-[#edc17a]">Acesso</p>
       <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white">Entrar no sistema</h1>
-      <p className="mt-3 text-sm leading-7 text-slate-400">Acesse seu clube e acompanhe desempenho, jogos e análises em um só lugar.</p>
-      <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-400">
-        Credenciais demo: <span className="text-white">admin@democlub.com</span> / <span className="text-white">password123</span>
-      </div>
+      <p className="mt-3 text-sm leading-7 text-slate-400">Acesse sua conta para acompanhar atletas, performance, alertas operacionais e inteligencia esportiva em um unico ambiente.</p>
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <Input label="E-mail" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@clube.com" required />
         <Input label="Senha" type="password" autoComplete="current-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Digite sua senha" required />
