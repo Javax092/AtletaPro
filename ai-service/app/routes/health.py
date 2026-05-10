@@ -7,6 +7,6 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/health", response_model=HealthResponse)
+@router.get("/api/health", response_model=HealthResponse)
 def health() -> dict:
     return health_service.get_status()
-

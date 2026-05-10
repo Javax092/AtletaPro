@@ -33,11 +33,16 @@ else
   printf '\nDATABASE_URL="%s"\n' "$DATABASE_URL" >> "$BACKEND_ENV_FILE"
 fi
 
+if grep -q '^DIRECT_URL=' "$BACKEND_ENV_FILE"; then
+  sed -i "s|^DIRECT_URL=.*|DIRECT_URL=\"${DATABASE_URL}\"|" "$BACKEND_ENV_FILE"
+else
+  printf 'DIRECT_URL="%s"\n' "$DATABASE_URL" >> "$BACKEND_ENV_FILE"
+fi
+
 cat <<EOF
 Local bootstrap completed.
 Root env: $ROOT_ENV_FILE
 Backend env: $BACKEND_ENV_FILE
-DATABASE_URL synchronized to:
+DATABASE_URL and DIRECT_URL synchronized to:
 $DATABASE_URL
 EOF
-

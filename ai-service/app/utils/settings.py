@@ -1,10 +1,11 @@
 from pathlib import Path
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_env: str = "development"
-    app_port: int = 8001
+    environment: str = Field(default="production", validation_alias=AliasChoices("ENVIRONMENT", "APP_ENV"))
+    port: int = Field(default=8001, validation_alias=AliasChoices("PORT", "APP_PORT"))
     storage_dir: str = "storage"
     video_sample_interval_seconds: float = 0.5
     video_heatmap_width: int = 96

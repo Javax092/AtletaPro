@@ -2,6 +2,7 @@ import axios from "axios";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { logger } from "../utils/logger.js";
+import { HttpError } from "../utils/httpError.js";
 
 const healthResponseSchema = z.object({
   status: z.string(),
@@ -97,6 +98,21 @@ const describeAxiosError = (error: unknown) => {
   };
 };
 
+const buildAiServiceHttpError = (error: unknown, operation: string, requestId?: string) => {
+  const parsedError = describeAxiosError(error);
+
+  logger.error("ai.request.failed", {
+    requestId,
+    operation,
+    aiServiceUrl: env.AI_SERVICE_URL,
+    statusCode: parsedError.statusCode,
+    message: parsedError.message,
+    detail: parsedError.detail,
+  });
+
+  return new HttpError(parsedError.statusCode, parsedError.message);
+};
+
 export const aiService = {
   async healthCheck() {
     const startedAt = Date.now();
@@ -156,18 +172,24 @@ export const aiService = {
       aiServiceUrl: env.AI_SERVICE_URL,
     });
 
-    const response = await aiHttpClient.post("/api/video/process", params.fileBuffer, {
-      headers: {
-        "Content-Type": params.mimeType,
-        "x-file-name": params.originalName,
-        "x-club-id": params.clubId,
-        "x-match-id": params.matchId,
-        ...(params.requestId ? { "x-request-id": params.requestId } : {}),
-      },
-      maxBodyLength: Infinity,
-    });
+    let result: z.output<typeof videoProcessResponseSchema>;
 
-    const result = videoProcessResponseSchema.parse(response.data);
+    try {
+      const response = await aiHttpClient.post("/api/video/process", params.fileBuffer, {
+        headers: {
+          "Content-Type": params.mimeType,
+          "x-file-name": params.originalName,
+          "x-club-id": params.clubId,
+          "x-match-id": params.matchId,
+          ...(params.requestId ? { "x-request-id": params.requestId } : {}),
+        },
+        maxBodyLength: Infinity,
+      });
+
+      result = videoProcessResponseSchema.parse(response.data);
+    } catch (error) {
+      throw buildAiServiceHttpError(error, "video-process", params.requestId);
+    }
 
     logger.info("ai.video_process.response", {
       requestId: params.requestId,
@@ -206,8 +228,14 @@ export const aiService = {
       aiServiceUrl: env.AI_SERVICE_URL,
     });
 
-    const response = await aiHttpClient.post("/api/injury-risk/analyze", payload);
-    const result = injuryRiskResponseSchema.parse(response.data);
+    let result: z.output<typeof injuryRiskResponseSchema>;
+
+    try {
+      const response = await aiHttpClient.post("/api/injury-risk/analyze", payload);
+      result = injuryRiskResponseSchema.parse(response.data);
+    } catch (error) {
+      throw buildAiServiceHttpError(error, "injury-risk", params.requestId);
+    }
 
     logger.info("ai.injury_risk.response", {
       requestId: params.requestId,

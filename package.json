@@ -1,0 +1,23 @@
+{
+  "name": "sports-ai-saas",
+  "private": true,
+  "scripts": {
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "frontend:install": "npm install --prefix frontend",
+    "backend:install": "npm install --prefix backend",
+    "typecheck": "npm run frontend:typecheck && npm run backend:typecheck",
+    "frontend:build": "npm run build --prefix frontend",
+    "backend:build": "npm run build --prefix backend",
+    "build": "npm run frontend:build && npm run backend:build",
+    "frontend:typecheck": "npm run typecheck --prefix frontend",
+    "backend:typecheck": "npm run typecheck --prefix backend",
+    "prisma:generate": "npm run prisma:generate --prefix backend",
+    "prisma:migrate": "npm run prisma:migrate --prefix backend",
+    "prisma:deploy": "npm run prisma:deploy --prefix backend",
+    "prisma:seed": "npm run prisma:seed --prefix backend",
+    "smoke:backend": "node scripts/smoke-backend.mjs",
+    "smoke:ai-service": "node scripts/smoke-ai-service.mjs",
+    "smoke": "npm run smoke:backend && npm run smoke:ai-service"
+  }
+}

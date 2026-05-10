@@ -6,9 +6,8 @@ class HealthService:
         return {
             "status": "ok",
             "service": "ai-service",
-            "environment": settings.app_env,
+            "environment": settings.environment,
         }
 
 
 health_service = HealthService()
-
