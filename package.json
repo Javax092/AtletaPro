@@ -1,16 +1,12 @@
 {
   "name": "sports-ai-saas",
   "private": true,
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
   "scripts": {
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "frontend:install": "npm install --prefix frontend",
     "backend:install": "npm install --prefix backend",
-    "postinstall": "npm run frontend:install && npm run backend:install",
+    "install:all": "npm run frontend:install && npm run backend:install",
     "typecheck": "npm run frontend:typecheck && npm run backend:typecheck",
     "frontend:build": "npm run build --prefix frontend",
     "backend:build": "npm run build --prefix backend",
